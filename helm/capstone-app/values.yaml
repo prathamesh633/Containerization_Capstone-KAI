@@ -1,0 +1,68 @@
+replicaCount: 2
+
+image:
+  repository: prathameshbhujade/flask-app
+  pullPolicy: Always
+  tag: "v2"
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 3000
+
+postgres:
+  image: postgres:15-alpine
+  dbName: capstone_db
+  user: postgres
+  # In a real environment, password should be injected via --set or secret handling
+  password: securepassword123
+  storage: 1Gi
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations: {}
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+networkPolicy:
+  enabled: false
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+daemonSet:
+  enabled: false
+  image: busybox:latest
+  schedule: "0 0 * * *" # Not used for DaemonSet, but for CronJob if we switched. Keeping generic.
+  # DaemonSet runs on every node.
+
+dbMigrationJob:
+  enabled: false
+  image: postgres:15-alpine
+  backoffLimit: 4
+

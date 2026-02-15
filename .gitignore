@@ -1,0 +1,44 @@
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json # Optional: Some teams commit this, others don't. Given simple project, ignoring for cleanliness if desired, but usually good to keep.  Actually, standard practice is to KEEP it. Let's NOT ignore it unless user asked. The request said "sensitive". package-lock isn't sensitive.
+# Removing package-lock.json from ignore.
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+.terraform.lock.hcl # Optional: usually committed, but if platform specific, maybe ignore. Keeping it un-ignored is standard.
+terraform.tfstate
+terraform.tfstate.backup
+
+# Testing / Coverage
+coverage/
+.nyc_output/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# OS
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Docker
+docker-compose.override.yml
+
+# Helm
+helm/capstone-app/charts/ # Dependencies

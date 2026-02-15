@@ -1,0 +1,87 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  imageName: 'capstone-app'
+  # Define these in Azure DevOps Library or Pipeline Variables
+  # AWS_ACCESS_KEY_ID
+  # AWS_SECRET_ACCESS_KEY
+  # AWS_REGION
+  # ECR_REPOSITORY_URI
+
+stages:
+- stage: Test
+  displayName: Test Stage
+  jobs:
+  - job: Test
+    displayName: Run Tests
+    steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '20.x'
+      displayName: 'Install Node.js'
+
+    - script: |
+        cd capstone-app
+        npm ci
+        npm run lint
+        # npm test
+      displayName: 'Install and Test'
+
+- stage: Build
+  displayName: Build and Push Stage
+  dependsOn: Test
+  condition: succeeded()
+  jobs:
+  - job: Build
+    displayName: Build and Push to ECR
+    steps:
+    - task: ECRPushImage@1
+      inputs:
+        awsCredentials: 'aws-connection' # You need to create this Service Connection in Azure DevOps
+        regionName: '$(AWS_REGION)'
+        imageSource: 'imagename'
+        sourceImageName: '$(imageName)'
+        repositoryName: 'capstone-app'
+        pushTag: '$(Build.SourceVersion)'
+        # OR use script if ECRPushImage task is not available/preferred
+    
+    # Alternative script-based approach for portability:
+    - script: |
+        aws ecr get-login-password --region $(AWS_REGION) | docker login --username AWS --password-stdin $(ECR_REPOSITORY_URI)
+        docker build -t $(ECR_REPOSITORY_URI):$(Build.SourceVersion) ./capstone-app
+        docker push $(ECR_REPOSITORY_URI):$(Build.SourceVersion)
+        docker build -t $(ECR_REPOSITORY_URI):latest ./capstone-app
+        docker push $(ECR_REPOSITORY_URI):latest
+      displayName: 'Build and Push Docker Image'
+      env:
+        AWS_ACCESS_KEY_ID: $(AWS_ACCESS_KEY_ID)
+        AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
+
+- stage: Deploy
+  displayName: Deploy to EKS
+  dependsOn: Build
+  condition: succeeded()
+  jobs:
+  - job: Deploy
+    displayName: Deploy Helm Chart
+    steps:
+    - task: HelmInstaller@0
+      inputs:
+        helmVersion: '3.12.0'
+        installKubectl: true
+
+    - script: |
+        aws eks update-kubeconfig --name capstone-cluster --region $(AWS_REGION)
+        
+        helm upgrade --install capstone-app ./capstone-app/helm/capstone-app \
+          --set image.repository=$(ECR_REPOSITORY_URI) \
+          --set image.tag=$(Build.SourceVersion) \
+          --set image.pullPolicy=Always
+      displayName: 'Deploy to EKS'
+      env:
+        AWS_ACCESS_KEY_ID: $(AWS_ACCESS_KEY_ID)
+        AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)

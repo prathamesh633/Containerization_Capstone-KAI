@@ -1,0 +1,28 @@
+{{- if .Values.daemonSet.enabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ .Release.Name }}-log-cleaner
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-log-cleaner
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-log-cleaner
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-log-cleaner
+    spec:
+      containers:
+      - name: log-cleaner
+        image: {{ .Values.daemonSet.image }}
+        command: ["/bin/sh", "-c", "echo 'Simulating log cleaning agent on node' && sleep 3600"]
+        resources:
+          limits:
+            memory: 50Mi
+          requests:
+            cpu: 10m
+            memory: 20Mi
+{{- end }}

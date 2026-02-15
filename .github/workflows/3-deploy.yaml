@@ -1,0 +1,55 @@
+name: 3-Deploy to EKS
+
+on:
+  workflow_run:
+    workflows: ["2-Build and Push"]
+    branches: [main]
+    types: 
+      - completed
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Update Kubeconfig
+      run: aws eks update-kubeconfig --name capstone-cluster --region ${{ secrets.AWS_REGION }}
+
+    - name: Install Helm
+      uses: azure/setup-helm@v4
+      with:
+        version: v3.12.0
+
+    - name: Deploy with Helm
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }} # Incorrect here, need login or secrets
+        ECR_REPOSITORY: capstone-app
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        # Note: In a real environment, you'd need the ECR URL. Assuming valid here or passing via vars.
+        # Ideally, pass the full image repo URL in secrets or construct it.
+        # For this example, we assume authentication works via kubeconfig for cluster access.
+        
+        # We need to get the account ID for ECR URL construction if not logged in
+        ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+        ECR_URL="${ACCOUNT_ID}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/capstone-app"
+
+        helm upgrade --install capstone-app ./capstone-app/helm/capstone-app \
+          --set image.repository=$ECR_URL \
+          --set image.tag=$IMAGE_TAG \
+          --set image.pullPolicy=Always

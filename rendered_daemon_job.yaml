@@ -1,0 +1,209 @@
+---
+# Source: capstone-app/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: capstone-app
+  namespace: default
+  labels:
+    app: capstone-app
+---
+# Source: capstone-app/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: capstone-app-secrets
+  namespace: default
+type: Opaque
+stringData:
+  DB_USER: postgres
+  DB_PASSWORD: securepassword123
+---
+# Source: capstone-app/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: capstone-app-config
+  namespace: default
+data:
+  DB_HOST: "capstone-app-db"
+  DB_PORT: "5432"
+  DB_NAME: capstone_db
+---
+# Source: capstone-app/templates/service-app.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: capstone-app-service
+  namespace: default
+spec:
+  selector:
+    app: capstone-app-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
+  type: ClusterIP
+---
+# Source: capstone-app/templates/service-db.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: capstone-app-db
+  namespace: default
+spec:
+  selector:
+    app: capstone-app-db
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+  clusterIP: None
+---
+# Source: capstone-app/templates/daemonset.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: capstone-app-log-cleaner
+  namespace: default
+  labels:
+    app: capstone-app-log-cleaner
+spec:
+  selector:
+    matchLabels:
+      app: capstone-app-log-cleaner
+  template:
+    metadata:
+      labels:
+        app: capstone-app-log-cleaner
+    spec:
+      containers:
+      - name: log-cleaner
+        image: busybox:latest
+        command: ["/bin/sh", "-c", "echo 'Simulating log cleaning agent on node' && sleep 3600"]
+        resources:
+          limits:
+            memory: 50Mi
+          requests:
+            cpu: 10m
+            memory: 20Mi
+---
+# Source: capstone-app/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: capstone-app-app
+  namespace: default
+  labels:
+    app: capstone-app-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: capstone-app-app
+  template:
+    metadata:
+      labels:
+        app: capstone-app-app
+    spec:
+      containers:
+      - name: app
+        image: "capstone-app:latest"
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3000
+        envFrom:
+        - configMapRef:
+            name: capstone-app-config
+        - secretRef:
+            name: capstone-app-secrets
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+---
+# Source: capstone-app/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: capstone-app-postgres-db
+  namespace: default
+spec:
+  serviceName: "capstone-app-db"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: capstone-app-db
+  template:
+    metadata:
+      labels:
+        app: capstone-app-db
+    spec:
+      containers:
+      - name: postgres
+        image: "postgres:15-alpine"
+        ports:
+        - containerPort: 5432
+          name: postgres
+        envFrom:
+        - secretRef:
+            name: capstone-app-secrets
+        env:
+        - name: POSTGRES_DB
+          valueFrom:
+            configMapKeyRef:
+              name: capstone-app-config
+              key: DB_NAME
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
+---
+# Source: capstone-app/templates/job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: capstone-app-db-migration-1771175997
+  namespace: default
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  backoffLimit: 4
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: db-migration
+        image: postgres:15-alpine
+        command: ["/bin/sh", "-c", "echo 'Running database migrations...' && sleep 5 && echo 'Migration complete'"]
+        env:
+        - name: DB_HOST
+          value: capstone-app-service-db
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: capstone-app-secret
+              key: password

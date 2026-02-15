@@ -1,0 +1,33 @@
+name: 1-Test App
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install Dependencies
+      working-directory: ./capstone-app
+      run: npm ci
+
+    # Add Linting if you have a lint script, e.g. npm run lint
+    # - name: Lint
+    #   working-directory: ./capstone-app
+    #   run: npm run lint
+
+    # Add Testing if you have a test script, e.g. npm test
+    # - name: Run Tests
+    #   working-directory: ./capstone-app
+    #   run: npm test
