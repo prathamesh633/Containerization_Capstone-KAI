@@ -42,27 +42,27 @@ serviceAccount:
   name: ""
 
 autoscaling:
-  enabled: false
+  enabled: true
   minReplicas: 1
   maxReplicas: 4
   targetCPUUtilizationPercentage: 80
   # targetMemoryUtilizationPercentage: 80
 
 networkPolicy:
-  enabled: false
+  enabled: true
 
 podDisruptionBudget:
-  enabled: false
+  enabled: true
   minAvailable: 1
 
 daemonSet:
-  enabled: false
+  enabled: true
   image: busybox:latest
   schedule: "0 0 * * *" # Not used for DaemonSet, but for CronJob if we switched. Keeping generic.
   # DaemonSet runs on every node.
 
 dbMigrationJob:
-  enabled: false
+  enabled: true
   image: postgres:15-alpine
   backoffLimit: 4
 

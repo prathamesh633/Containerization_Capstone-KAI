@@ -15,6 +15,7 @@ spec:
       labels:
         app: {{ .Release.Name }}-app
     spec:
+      serviceAccountName: {{ include "capstone-app.serviceAccountName" . }}
       containers:
       - name: app
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"

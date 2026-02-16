@@ -22,6 +22,6 @@ spec:
         - name: PGPASSWORD
           valueFrom:
             secretKeyRef:
-              name: {{ .Release.Name }}-secret
-              key: password
+              name: {{ .Release.Name }}-secrets
+              key: DB_PASSWORD
 {{- end }}
