@@ -4,7 +4,7 @@ This directory contains Infrastructure as Code (IaC) definitions for provisionin
 
 ## Architecture
 
-![Infrastructure Architecture](/home/prathamesh-bhujade/.gemini/antigravity/brain/0e08c34c-2070-4156-b87c-8feb2b629acc/capstone_professional_architecture_diagram_1771232657215.png)
+![Infrastructure Architecture](../images/architecture.png)
 
 ## Resources
 
